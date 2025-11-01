@@ -77,6 +77,9 @@ module tt_um_mark28277 (
         .output_valid(linear_3_valid)
     );
 
+    reg [7:0] uo_out_reg;
+    reg [7:0] uio_out_reg;
+    reg [7:0] uio_oe_reg;
     
     always @(posedge clk) begin
         if (reset) begin

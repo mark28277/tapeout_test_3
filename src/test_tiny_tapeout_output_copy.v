@@ -13,23 +13,6 @@ module tt_um_mark28277 (
     input wire           rst_n //(reset_n - low to reset)
 );
     //-----------------------load image---------------------------
-    reg [7:0] image_buffer [63:0];  // Store 64 pixels, based on input data
-    reg [5:0] pixel_counter;      // Count 0-63
-    wire loading_done = (pixel_counter == 63);
-
-    always @(posedge clk) begin
-        if (reset) begin
-            pixel_counter <= 0;
-            for (integer i = 0; i < 64; i = i + 1) begin
-            image_buffer[i] <= 0;
-            end
-        end else begin
-            image_buffer[pixel_counter] <= ui_in;  // Store current pixel
-            if (pixel_counter < 63) begin
-                pixel_counter <= pixel_counter + 1;
-            end
-        end
-    end
 
     // Input interface for Tiny Tapeout limited I/O
     wire reset;
@@ -42,7 +25,7 @@ module tt_um_mark28277 (
     conv2d_layer conv_inst_0 (
         .clk(clk),
         .reset(reset),
-        .input_data(image_buffer),
+        .input_data(ui_in),
         .start_processing(loading_done),
         .output_data_0(conv_0_out_0),
         .output_data_1(conv_0_out_1),

@@ -26,7 +26,6 @@ module tt_um_mark28277 (
         .clk(clk),
         .reset(reset),
         .input_data(ui_in),
-        .start_processing(loading_done),
         .output_data_0(conv_0_out_0),
         .output_data_1(conv_0_out_1),
         .output_valid(conv_0_valid)//for pipeline synchronization
@@ -103,7 +102,6 @@ endmodule
 module conv2d_layer (
     input wire clk,
     input wire reset,
-    input wire start_processing,
     input wire [7:0] input_data,
     output reg [7:0] output_data_0, //output wire numbers based on # filters
     output reg [7:0] output_data_1,
@@ -221,7 +219,7 @@ module conv2d_layer (
             output_valid <= 0;
             pos_counter <= 0;
             processing <= 0;
-        end else if (start_processing && !processing) begin
+        end else if (!processing) begin
             // Start processing after image loaded
             processing <= 1;
         end else if (processing) begin

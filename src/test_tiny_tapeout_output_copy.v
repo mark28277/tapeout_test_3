@@ -101,7 +101,7 @@ module conv2d_layer (
     input wire clk,
     input wire reset,
     input wire start_processing,
-    input wire [7:0] input_data [63:0],
+    input wire [7:0] input_data,
     output reg [7:0] output_data_0, //output wire numbers based on # filters
     output reg [7:0] output_data_1,
     output reg output_valid
@@ -221,13 +221,8 @@ module conv2d_layer (
         end else if (processing) begin
             // INNER LOOP: Process weights for current position
             kernel_position = weight_counter % 9;
-            pixel_val = input_buffer[kernel_position];
-            if(weight_counter < 9) begin                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-                accum_0 <= accum_0 + (pixel_val * conv_weight[weight_counter]);
-            end else begin
-                accum_1 <= accum_1 + (pixel_val * conv_weight[weight_counter]);
-            end
-
+            pixel_val = input_buffer[kernel_position];                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+            accum_0 <= accum_0 + (pixel_val * conv_weight[weight_counter]);
             if (weight_counter == 17) //based on # weights
             begin
                 output_data_0 <= scale_and_relu(accum_0 + (conv_bias[0] << 11));

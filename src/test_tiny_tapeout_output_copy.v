@@ -169,6 +169,9 @@ module conv2d_layer (
     endfunction
 
     always @(*) begin
+        for (integer i = 0; i < 9; i = i + 1) begin
+            input_buffer[i] = 0;
+        end
         if (processing) begin
             input_buffer[0] = get_pixel((center_x-1), (center_y-1)); // Top-left
             input_buffer[1] = get_pixel(center_x, (center_y-1));     // Top-middle

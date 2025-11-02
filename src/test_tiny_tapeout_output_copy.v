@@ -18,6 +18,22 @@ module tt_um_mark28277 (
     wire reset;
     assign reset = ~rst_n;
 
+    reg [7:0] image_buffer [63:0];  // Store 64 pixels, based on input data
+    reg [5:0] pixel_counter;      // Count 0-63
+    wire loading_done = (pixel_counter == 63);
+
+    always @(posedge clk) begin
+        if (reset) begin
+            pixel_counter <= 0;
+            for (integer i = 0; i < 64; i = i + 1) begin
+            image_buffer[i] <= 0;
+            end
+        end else if (ena && !loading_done) begin
+            image_buffer[pixel_counter] <= ui_in;  // Store current pixel
+            pixel_counter <= pixel_counter + 1;
+        end
+    end
+    
     // Conv2d Layer 0
     wire [7:0] conv_0_out_0;
     wire [7:0] conv_0_out_1; //based on # filters
@@ -25,7 +41,7 @@ module tt_um_mark28277 (
     conv2d_layer conv_inst_0 (
         .clk(clk),
         .reset(reset),
-        .input_data(ui_in),
+        .input_data(image_buffer),
         .output_data_0(conv_0_out_0),
         .output_data_1(conv_0_out_1),
         .output_valid(conv_0_valid)//for pipeline synchronization
@@ -102,7 +118,7 @@ endmodule
 module conv2d_layer (
     input wire clk,
     input wire reset,
-    input wire [7:0] input_data,
+    input wire [7:0] input_data [63:0],
     output reg [7:0] output_data_0, //output wire numbers based on # filters
     output reg [7:0] output_data_1,
     output reg output_valid

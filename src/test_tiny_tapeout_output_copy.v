@@ -118,7 +118,7 @@ module conv2d_layer (
             for (integer i = 0; i < 64; i = i + 1) begin
             image_buffer[i] <= 0;
             end
-        end else if (ena && !loading_done) begin
+        end else if (!loading_done) begin
             image_buffer[pixel_counter] <= input_data;  // Store current pixel
             pixel_counter <= pixel_counter + 1;
         end

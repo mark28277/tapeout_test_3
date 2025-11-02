@@ -12,11 +12,12 @@ module tt_um_mark28277 (
     input wire           clk, //(clock)
     input wire           rst_n //(reset_n - low to reset)
 );
+    //-----------------------load image---------------------------
+
     // Input interface for Tiny Tapeout limited I/O
     wire reset;
     assign reset = ~rst_n;
-    //-----------------------load image---------------------------
-    
+
     // Conv2d Layer 0
     wire [7:0] conv_0_out_0;
     wire [7:0] conv_0_out_1; //based on # filters
@@ -75,7 +76,6 @@ module tt_um_mark28277 (
         .output_valid(linear_3_valid)
     );
 
-    
     reg [7:0] uo_out_reg;
     reg [7:0] uio_out_reg;
     reg [7:0] uio_oe_reg;
@@ -95,7 +95,6 @@ module tt_um_mark28277 (
     assign uo_out = uo_out_reg;
     assign uio_out = uio_out_reg;
     assign uio_oe = uio_oe_reg;
-
 
 endmodule
 
@@ -157,10 +156,6 @@ module conv2d_layer (
     wire signed [2:0] center_y = pos_counter / 6;
     reg [7:0] input_buffer [8:0];
 
-    for (integer i = 0; i < 9; i = i + 1) begin
-        input_buffer[i] = 0;  // Default all to 0
-    end
-    
     function [7:0] get_pixel;
         input signed [4:0] x, y;  // Signed coordinates (-8 to 7)
         begin
@@ -172,6 +167,9 @@ module conv2d_layer (
     endfunction
 
     always @(*) begin
+        for (integer i = 0; i < 9; i = i + 1) begin
+            input_buffer[i] = 0;
+        end
         if (processing) begin
             input_buffer[0] = get_pixel((center_x-1), (center_y-1)); // Top-left
             input_buffer[1] = get_pixel(center_x, (center_y-1));     // Top-middle
@@ -221,40 +219,33 @@ module conv2d_layer (
             output_valid <= 0;
             pos_counter <= 0;
             processing <= 0;
-        end else if (ena) begin
-            if (start_processing && !processing) begin
-                // Start processing after image loaded
-                processing <= 1;
-            end else if (processing) begin
-                // INNER LOOP: Process weights for current position
-                kernel_position = weight_counter % 9;
-                pixel_val = input_buffer[kernel_position];
-                if(weight_counter < 9) begin                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-                    accum_0 <= accum_0 + (pixel_val * conv_weight[weight_counter]);
-                end else begin
-                    accum_1 <= accum_1 + (pixel_val * conv_weight[weight_counter]);
-                end
-
-                if (weight_counter == 17) //based on # weights
-                begin
-                    output_data_0 <= scale_and_relu(accum_0 + (conv_bias[0] << 11));
-                    output_data_1 <= scale_and_relu(accum_1 + (conv_bias[1] << 11));
-                    output_valid <= 1;
-                    weight_counter <= 0;
-                    accum_0 <= 0;  // Reset accumulators for next position
-                    accum_1 <= 0;
-                    pos_counter <= pos_counter + 1; //move to nest position
-                end else begin
-                    weight_counter <= weight_counter + 1;
-                    output_valid <= 0;
-                end
-
-                if (pos_counter == 35) begin
-                    processing <= 0;  // All done!
-                end
+        end else if (!processing) begin
+            // Start processing after image loaded
+            processing <= 1;
+        end else if (processing) begin
+            // INNER LOOP: Process weights for current position
+            kernel_position = weight_counter % 9;
+            pixel_val = input_buffer[kernel_position];                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+            accum_0 <= accum_0 + (pixel_val * conv_weight[weight_counter]);
+            if (weight_counter == 17) //based on # weights
+            begin
+                output_data_0 <= scale_and_relu(accum_0 + (conv_bias[0] << 11));
+                output_data_1 <= scale_and_relu(accum_1 + (conv_bias[1] << 11));
+                output_valid <= 1;
+                weight_counter <= 0;
+                accum_0 <= 0;  // Reset accumulators for next position
+                accum_1 <= 0;
+                pos_counter <= pos_counter + 1; //move to nest position
             end else begin
+                weight_counter <= weight_counter + 1;
                 output_valid <= 0;
             end
+
+            if (pos_counter == 35) begin
+                processing <= 0;  // All done!
+            end
+        end else begin
+            output_valid <= 0;
         end
     end
 endmodule
@@ -281,7 +272,7 @@ module linear_layer (
             output_reg_0 <= 8'b0;
             output_reg_1 <= 8'b0;
             output_valid <= 0;
-        end else if (ena && input_valid) begin
+        end else if (input_valid) begin
             // Simplified linear operation
             output_reg_0 <= input_data_0 + 8'h20;
             output_reg_1 <= input_data_1 + 8'h20;
@@ -318,7 +309,7 @@ module relu_layer (
             output_reg_0 <= 8'b0;
             output_reg_1 <= 8'b0;
             output_valid <= 0;
-        end else if (ena && input_valid) begin
+        end else if (input_valid) begin
             // Simplified ReLU operation
             output_reg_0 <= (input_data_0[7] == 1'b0) ? input_data_0 : 8'b0;
             output_reg_1 <= (input_data_1[7] == 1'b0) ? input_data_1 : 8'b0;
@@ -354,7 +345,7 @@ module maxpool_layer (
             output_reg_0 <= 8'b0;
             output_reg_1 <= 8'b0;
             output_valid <= 0;
-        end else if (ena && input_valid) begin
+        end else if (input_valid) begin
             // Simplified maxpool operation
             output_reg_0 <= input_data_0; // Pass through for simplicity
             output_reg_1 <= input_data_1;

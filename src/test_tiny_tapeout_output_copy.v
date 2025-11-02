@@ -26,11 +26,9 @@ module tt_um_mark28277 (
             for (integer i = 0; i < 64; i = i + 1) begin
             image_buffer[i] <= 0;
             end
-        end else begin
+        end else if (ena && !loading_done) begin
             image_buffer[pixel_counter] <= ui_in;  // Store current pixel
-            if (pixel_counter < 63) begin
-                pixel_counter <= pixel_counter + 1;
-            end
+            pixel_counter <= pixel_counter + 1;
         end
     end
     
@@ -93,18 +91,75 @@ module tt_um_mark28277 (
         .output_valid(linear_3_valid)
     );
 
+    
+    // Add these registers to collect ALL positions
+    reg [7:0] feature_map_0 [35:0];  // Store all 36 positions for filter 0
+    reg [7:0] feature_map_1 [35:0];  // Store all 36 positions for filter 1
+    reg [5:0] collect_counter;       // Track which position we're collecting
+    reg collection_done;             // Flag when all positions collected
+
+    // Collection logic - runs after convolution completes
+    always @(posedge clk) begin
+        if (reset) begin
+            collect_counter <= 0;
+            collection_done <= 0;
+        end else if (ena && conv_0_valid) begin  // When conv outputs a valid position
+            feature_map_0[collect_counter] <= conv_0_out_0;
+            feature_map_1[collect_counter] <= conv_0_out_1;
+            collect_counter <= collect_counter + 1;
+            
+            if (collect_counter == 35) begin
+                collection_done <= 1;
+                collect_counter <= 0;
+            end
+        end
+    end
+
+    // Simple prediction: average of all positions
+    function [7:0] compute_prediction_0;
+        integer i;
+        reg [13:0] sum;  // 14-bit to avoid overflow (36*255 = 9180)
+        begin
+            sum = 0;
+            for (i = 0; i < 36; i = i + 1) begin
+                sum = sum + feature_map_0[i];
+            end
+            compute_prediction_0 = sum / 36;  // Average
+        end
+    endfunction
+
+    function [7:0] compute_prediction_1;
+        integer i;
+        reg [13:0] sum;
+        begin
+            sum = 0;
+            for (i = 0; i < 36; i = i + 1) begin
+                sum = sum + feature_map_1[i];
+            end
+            compute_prediction_1 = sum / 36;  // Average
+        end
+    endfunction
+
+    // Output interface for Tiny Tapeout limited I/O
     reg [7:0] uo_out_reg;
     reg [7:0] uio_out_reg;
     reg [7:0] uio_oe_reg;
-    
+
     always @(posedge clk) begin
         if (reset) begin
             uo_out_reg <= 8'b0;
             uio_out_reg <= 8'b0;
             uio_oe_reg <= 8'b0;
         end else if (ena) begin
-            uo_out_reg <= linear_3_out_0;
-            uio_out_reg <= linear_3_out_1;
+            if (collection_done) begin
+                // Output ACTUAL PREDICTION (average of all positions)
+                uo_out_reg <= compute_prediction_0;   // Filter 0 average
+                uio_out_reg <= compute_prediction_1;  // Filter 1 average
+            end else begin
+                // Still processing - show progress or zeros
+                uo_out_reg <= 8'b0;
+                uio_out_reg <= 8'b0;
+            end
             uio_oe_reg <= 8'hFF;
         end
     end
@@ -174,6 +229,10 @@ module conv2d_layer (
     wire signed [2:0] center_y = pos_counter / 6;
     reg [7:0] input_buffer [8:0];
 
+    for (integer i = 0; i < 9; i = i + 1) begin
+        input_buffer[i] = 0;  // Default all to 0
+    end
+    
     function [7:0] get_pixel;
         input signed [4:0] x, y;  // Signed coordinates (-8 to 7)
         begin
@@ -185,9 +244,6 @@ module conv2d_layer (
     endfunction
 
     always @(*) begin
-        for (integer i = 0; i < 9; i = i + 1) begin
-            input_buffer[i] = 0;
-        end
         if (processing) begin
             input_buffer[0] = get_pixel((center_x-1), (center_y-1)); // Top-left
             input_buffer[1] = get_pixel(center_x, (center_y-1));     // Top-middle
@@ -237,33 +293,40 @@ module conv2d_layer (
             output_valid <= 0;
             pos_counter <= 0;
             processing <= 0;
-        end else if (!processing) begin
-            // Start processing after image loaded
-            processing <= 1;
-        end else if (processing) begin
-            // INNER LOOP: Process weights for current position
-            kernel_position = weight_counter % 9;
-            pixel_val = input_buffer[kernel_position];                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
-            accum_0 <= accum_0 + (pixel_val * conv_weight[weight_counter]);
-            if (weight_counter == 17) //based on # weights
-            begin
-                output_data_0 <= scale_and_relu(accum_0 + (conv_bias[0] << 11));
-                output_data_1 <= scale_and_relu(accum_1 + (conv_bias[1] << 11));
-                output_valid <= 1;
-                weight_counter <= 0;
-                accum_0 <= 0;  // Reset accumulators for next position
-                accum_1 <= 0;
-                pos_counter <= pos_counter + 1; //move to nest position
+        end else if (ena) begin
+            if (start_processing && !processing) begin
+                // Start processing after image loaded
+                processing <= 1;
+            end else if (processing) begin
+                // INNER LOOP: Process weights for current position
+                kernel_position = weight_counter % 9;
+                pixel_val = input_buffer[kernel_position];
+                if(weight_counter < 9) begin                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+                    accum_0 <= accum_0 + (pixel_val * conv_weight[weight_counter]);
+                end else begin
+                    accum_1 <= accum_1 + (pixel_val * conv_weight[weight_counter]);
+                end
+
+                if (weight_counter == 17) //based on # weights
+                begin
+                    output_data_0 <= scale_and_relu(accum_0 + (conv_bias[0] << 11));
+                    output_data_1 <= scale_and_relu(accum_1 + (conv_bias[1] << 11));
+                    output_valid <= 1;
+                    weight_counter <= 0;
+                    accum_0 <= 0;  // Reset accumulators for next position
+                    accum_1 <= 0;
+                    pos_counter <= pos_counter + 1; //move to nest position
+                end else begin
+                    weight_counter <= weight_counter + 1;
+                    output_valid <= 0;
+                end
+
+                if (pos_counter == 35) begin
+                    processing <= 0;  // All done!
+                end
             end else begin
-                weight_counter <= weight_counter + 1;
                 output_valid <= 0;
             end
-
-            if (pos_counter == 35) begin
-                processing <= 0;  // All done!
-            end
-        end else begin
-            output_valid <= 0;
         end
     end
 endmodule
@@ -290,7 +353,7 @@ module linear_layer (
             output_reg_0 <= 8'b0;
             output_reg_1 <= 8'b0;
             output_valid <= 0;
-        end else if (input_valid) begin
+        end else if (ena && input_valid) begin
             // Simplified linear operation
             output_reg_0 <= input_data_0 + 8'h20;
             output_reg_1 <= input_data_1 + 8'h20;
@@ -327,7 +390,7 @@ module relu_layer (
             output_reg_0 <= 8'b0;
             output_reg_1 <= 8'b0;
             output_valid <= 0;
-        end else if (input_valid) begin
+        end else if (ena && input_valid) begin
             // Simplified ReLU operation
             output_reg_0 <= (input_data_0[7] == 1'b0) ? input_data_0 : 8'b0;
             output_reg_1 <= (input_data_1[7] == 1'b0) ? input_data_1 : 8'b0;
@@ -363,7 +426,7 @@ module maxpool_layer (
             output_reg_0 <= 8'b0;
             output_reg_1 <= 8'b0;
             output_valid <= 0;
-        end else if (input_valid) begin
+        end else if (ena && input_valid) begin
             // Simplified maxpool operation
             output_reg_0 <= input_data_0; // Pass through for simplicity
             output_reg_1 <= input_data_1;

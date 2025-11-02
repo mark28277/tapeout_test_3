@@ -41,7 +41,7 @@ module tt_um_mark28277 (
     conv2d_layer conv_inst_0 (
         .clk(clk),
         .reset(reset),
-        .input_data(image_buffer),
+        .input_data(ui_in),
         .output_data_0(conv_0_out_0),
         .output_data_1(conv_0_out_1),
         .output_valid(conv_0_valid)//for pipeline synchronization

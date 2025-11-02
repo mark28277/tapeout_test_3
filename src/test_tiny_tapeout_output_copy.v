@@ -118,7 +118,7 @@ endmodule
 module conv2d_layer (
     input wire clk,
     input wire reset,
-    input wire [63:0][7:0] input_data,
+    input wire [7:0] input_data [63:0],
     output reg [7:0] output_data_0, //output wire numbers based on # filters
     output reg [7:0] output_data_1,
     output reg output_valid

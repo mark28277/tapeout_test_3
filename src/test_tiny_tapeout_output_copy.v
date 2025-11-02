@@ -18,7 +18,7 @@ module tt_um_mark28277 (
     wire reset;
     assign reset = ~rst_n;
 
-    wire [7:0] image_buffer [63:0];  // Store 64 pixels, based on input data
+    reg [7:0] image_buffer [63:0];  // Store 64 pixels, based on input data
     reg [5:0] pixel_counter;      // Count 0-63
     wire loading_done = (pixel_counter == 63);
 
@@ -118,7 +118,7 @@ endmodule
 module conv2d_layer (
     input wire clk,
     input wire reset,
-    input wire [7:0] input_data [63:0],
+    input wire [63:0][7:0] input_data,
     output reg [7:0] output_data_0, //output wire numbers based on # filters
     output reg [7:0] output_data_1,
     output reg output_valid

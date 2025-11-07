@@ -126,7 +126,7 @@ module conv2d_layer (
     
     // conv.weight
     // Shape: [2, 1, 3, 3] = 18 weights
-    reg signed [7:0] conv_weight [17:0];
+    (* ram_style = "block" *) reg signed [7:0] conv_weight [17:0];
     always @(posedge clk) begin
         if(reset) begin
         conv_weight[0] <= 11;

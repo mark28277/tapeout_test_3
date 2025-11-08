@@ -126,21 +126,33 @@ module conv2d_layer (
     
     // conv.weight
     // Shape: [2, 1, 3, 3] = 18 weights
-    reg signed [7:0] conv_weight;
-    always @(posedge clk) begin
-        if(reset) begin
-        conv_weight <= 11;
-        end
-    end
-
+    reg signed [7:0] conv_weight [17:0];
     // conv.bias
     // Shape: [2] = 2 weights
     reg signed [7:0] conv_bias [1:0];
-    always @(posedge clk) begin
-        if(reset) begin
+    initial begin
+        conv_weight[0] <= 11;
+        conv_weight[1] <= 8;
+        conv_weight[2] <= 16;
+        conv_weight[3] <= 9;
+        conv_weight[4] <= 9;
+        conv_weight[5] <= 14;
+        conv_weight[6] <= -16;
+        conv_weight[7] <= -12;
+        conv_weight[8] <= 11;
+        conv_weight[9] <= -11;
+        conv_weight[10] <= -4;
+        conv_weight[11] <= 4;
+        conv_weight[12] <= -9;
+        conv_weight[13] <= -16;
+        conv_weight[14] <= 7;
+        conv_weight[15] <= -7;
+        conv_weight[16] <= -1;
+        conv_weight[17] <= 10;
+        
         conv_bias[0] <= 3;
         conv_bias[1] <= 13;
-        end
+        
     end
 
 

@@ -126,27 +126,10 @@ module conv2d_layer (
     
     // conv.weight
     // Shape: [2, 1, 3, 3] = 18 weights
-    (* ram_style = "block" *) reg signed [31:0] conv_weight [511:0];
+    reg signed [7:0] conv_weight;
     always @(posedge clk) begin
         if(reset) begin
-        conv_weight[0] <= 11;
-        conv_weight[1] <= 8;
-        conv_weight[2] <= 16;
-        conv_weight[3] <= 9;
-        conv_weight[4] <= 9;
-        conv_weight[5] <= 14;
-        conv_weight[6] <= -16;
-        conv_weight[7] <= -12;
-        conv_weight[8] <= 11;
-        conv_weight[9] <= -11;
-        conv_weight[10] <= -4;
-        conv_weight[11] <= 4;
-        conv_weight[12] <= -9;
-        conv_weight[13] <= -16;
-        conv_weight[14] <= 7;
-        conv_weight[15] <= -7;
-        conv_weight[16] <= -1;
-        conv_weight[17] <= 10;
+        conv_weight <= 11;
         end
     end
 
@@ -170,7 +153,7 @@ module conv2d_layer (
     // For window centered at (center_x, center_y), each pixel 0-8
     wire signed [2:0] center_x = pos_counter % 6;
     wire signed [2:0] center_y = pos_counter / 6;
-    reg [7:0] input_buffer [8:0];
+    reg [7:0] window [8:0];
 
     function [7:0] get_pixel;
         input signed [4:0] x, y;  // Signed coordinates (-8 to 7)
@@ -184,18 +167,18 @@ module conv2d_layer (
 
     always @(*) begin
         for (integer i = 0; i < 9; i = i + 1) begin
-            input_buffer[i] = 0;
+            window[i] = 0;
         end
         if (processing) begin
-            input_buffer[0] = get_pixel((center_x-1), (center_y-1)); // Top-left
-            input_buffer[1] = get_pixel(center_x, (center_y-1));     // Top-middle
-            input_buffer[2] = get_pixel((center_x+1), (center_y-1)); // Top-right
-            input_buffer[3] = get_pixel((center_x-1), center_y);     // Middle-left  
-            input_buffer[4] = get_pixel(center_x, center_y);         // Center
-            input_buffer[5] = get_pixel((center_x+1), center_y);     // Middle-right
-            input_buffer[6] = get_pixel((center_x-1), (center_y+1)); // Bottom-left
-            input_buffer[7] = get_pixel(center_x, (center_y+1));     // Bottom-middle
-            input_buffer[8] = get_pixel((center_x+1), (center_y+1)); // Bottom-right
+            window[0] = get_pixel((center_x-1), (center_y-1)); // Top-left
+            window[1] = get_pixel(center_x, (center_y-1));     // Top-middle
+            window[2] = get_pixel((center_x+1), (center_y-1)); // Top-right
+            window[3] = get_pixel((center_x-1), center_y);     // Middle-left  
+            window[4] = get_pixel(center_x, center_y);         // Center
+            window[5] = get_pixel((center_x+1), center_y);     // Middle-right
+            window[6] = get_pixel((center_x-1), (center_y+1)); // Bottom-left
+            window[7] = get_pixel(center_x, (center_y+1));     // Bottom-middle
+            window[8] = get_pixel((center_x+1), (center_y+1)); // Bottom-right
         end
     end
     
@@ -241,7 +224,7 @@ module conv2d_layer (
         end else if (processing) begin
             // INNER LOOP: Process weights for current position
             kernel_position = weight_counter % 9;
-            pixel_val = input_buffer[kernel_position];                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+            pixel_val = window[kernel_position];                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
             accum_0 <= accum_0 + (pixel_val * conv_weight[weight_counter]);
             if (weight_counter == 17) //based on # weights
             begin
